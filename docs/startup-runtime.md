@@ -208,7 +208,8 @@ The translation is refused when:
 - either header has another size;
 - the code reads an attribute the table does not list.
 
-Graphics and compute use cache revisions `x2w-startup-shader-27` and `x2w-startup-shader-27cs`.
+Graphics and compute use cache revisions `x2w-startup-shader-28` and `x2w-startup-shader-28cs`.
+Revision 28 lowers `v_fma_mix*` through a `precise` `mad`, so a zero product keeps its sign.
 Revision 25 preserves the sign of zero in binary16 multiply, including the packed and SDWA forms.
 Revision 24 invalidates translations that revision 23 wrongly accepted: `vcc_hi_scalar_mask_read` now also
 treats a whole-word lane-read writer (`v_readfirstlane`/`v_readlane`) of vcc_hi, in branch order too, as
@@ -556,8 +557,9 @@ Three census lines follow the five-second report whenever their counts changed
 - `x2w-d3d12 memory SRV refusals (slot 70): total N; <reason> n, ...; distinct shapes K` counts every
   refused slot 70 call by reason. It then prints one `x2w-d3d12 memory SRV refused shape i:` line per
   distinct `reason`, dimension, format, size, mips, layout and flags, for the reasons that depend on the
-  description (all but `null_destination`, `unreadable_resource`, `unreadable_view`, `null_address` and
-  `destination_outside_view_heaps`). The reasons include the partial-tile holds (`partial_tile_*`) and the
+  description (all but `null_destination`, `unreadable_resource`, `unreadable_view`, `null_address`,
+  `destination_outside_view_heaps` and the acceleration-structure holds `as_unaligned`, `as_not_placed` and
+  `as_wrong_state`). The reasons include the partial-tile holds (`partial_tile_*`) and the
   console-layout holds (`unsupported_desktop_format`, `console_layout_*`, `overlapping_resource`).
   Up to 128 shapes are kept; later shapes are only counted. The periodic report lists the shapes counted
   since it last ran.
@@ -2913,7 +2915,8 @@ process's peak and current commit charge in MiB and the number of live 64 KiB ph
 (the heartbeat still calls them sections), so runs that stop at different points can be compared by
 memory spent rather than by elapsed time. A physical page holds a slot from its first use (a mapping
 or a DirectStorage write) until its grant is released; `xmem.dll` publishes that count through the
-experimental `x2w_xmem_page_stats` export.
+experimental `x2w_xmem_page_stats` export. A page-token write (`x2w_xmem_write_physical`) to a page
+that has no grant is refused with `ERROR_INVALID_PARAMETER`, like a mapping of it.
 
 The slots are 64 KiB pieces of shared 256 MiB slabs (4096 slots each, `src/xmem_slab_slots.h`). A slab reserves
 its capacity with `SEC_RESERVE`. Each slot commits on the first mapping or write. A freed slot remains
@@ -3288,8 +3291,14 @@ recording and before submit, while the cap skips multi-GiB existing heaps to avo
 uncovered prefix, and right before
 `OpenExistingHeapFromAddress` opens the heap). Anything else gets a
 committed default buffer that does not alias the title memory, holds zeros and is reported as
-success (`not aliased` in the log). `reserve_upload_ring` similarly grows in demand chunks starting at 16 MiB up to the
-256 MiB total cap instead of committing 256 MiB upfront. `X2W_D3D12_LINEAR_BUFFERS` changes this for one buffer kind: a
+success (`not aliased` in the log). `reserve_upload_ring` grows in demand
+chunks from 16 MiB up to the 256 MiB total cap. A reservation owns its mapped
+bytes for the process; the allocator may use an older unused tail but
+refuses exhaustion or allocation failure rather than resetting live storage.
+`upload_reservation` exercises the shared cursor and returned-pointer contract
+without D3D12; on non-Windows hosts run
+`c++ -std=c++17 -Isrc tests/upload_reservation_check.cpp -o out/upload_reservation_check && out/upload_reservation_check`.
+`X2W_D3D12_LINEAR_BUFFERS` changes placement for one buffer kind: a
 buffer description with row-major or unknown layout and initial state `COMMON`
 (`src/startup_stubs/linear_buffer_backing.h`, [#1914](https://github.com/R0Y00/Xbox2Windows/issues/1914)).
 Buffers in `UNORDERED_ACCESS` or acceleration-structure state, and textures, keep the default backing.
