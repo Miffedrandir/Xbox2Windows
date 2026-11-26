@@ -205,7 +205,9 @@ static void* make_committed(void* device, D3D12_HEAP_TYPE type, const D3D12_RESO
 // Controls on the recorded state: dispatch-missing-word leaves out the slot 37 call; dispatch-root-changed sets
 // another compute root and the first one again after the constants, dispatch-same-root sets the same root again;
 // dispatch-reset closes and resets the list after the constants; dispatch-wrong-root records under the other
-// root; dispatch-same-buffer names the output buffer as the input too.
+// root; dispatch-same-buffer names the output buffer as the input too. dispatch-output-token writes, where the output
+// descriptor was, the token of a raw unordered access view of the output buffer (device slot 19);
+// dispatch-output-token-typed makes that view R32_UINT.
 // Input descriptors the dispatch refuses, one reason each: dispatch-input-empty has zero records (a nonzero base,
 // word 3 zero), dispatch-input-past ends 16 bytes past the input buffer, dispatch-input-unplaced names memory between
 // the two buffers, dispatch-input-copied a third buffer placed there at an offset the desktop cannot alias, and
@@ -342,6 +344,12 @@ static int dispatch_slot67(IDXGIAdapter* adapter, void* device, const std::strin
         // The token is wider than a table descriptor: the output descriptor after it is written again.
         std::memcpy(reinterpret_cast<void*>(cpu + sizeof(descriptors[0])), descriptors[1], sizeof(descriptors[1]));
         std::memcpy(unplaced + 4, buffers[0], words * sizeof(UINT));
+    }
+    if (mode == "dispatch-output-token" || mode == "dispatch-output-token-typed") {
+        const bool typed = mode == "dispatch-output-token-typed";
+        D3D12_UNORDERED_ACCESS_VIEW_DESC view{typed ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R32_TYPELESS, D3D12_UAV_DIMENSION_BUFFER};
+        view.Buffer = {0, words, 0, 0, typed ? D3D12_BUFFER_UAV_FLAG_NONE : D3D12_BUFFER_UAV_FLAG_RAW};
+        invoke(device, 19, word(placed[1]), 0, word(&view), cpu + sizeof(descriptors[0]));
     }
     if (mode != "dispatch-missing-word") invoke(list, 37, 0, constants[0], 0);
     invoke(list, 40, 0, 2, word(graphics), 0);

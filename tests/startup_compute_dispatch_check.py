@@ -18,7 +18,9 @@ memory; the output words are read from that memory after the queue's fence. Four
 6. five more refusals, each with its one logged reason and an untouched output: dispatch-missing-word (no slot 37
    call), dispatch-root-changed (another compute root and back after the constants), dispatch-reset (list closed
    and reset after the constants), dispatch-wrong-root (recorded under a root the pipeline was not created with)
-   and dispatch-same-buffer (the output buffer is also the input).
+   and dispatch-same-buffer (the output buffer is also the input);
+7. dispatch-output-token and dispatch-output-token-typed (the output named by the token of a raw, or R32_UINT, buffer
+   view of the output buffer): all 320 words match and nothing is refused.
 Exit 77 when the adapter is not available.
 """
 import os
@@ -129,8 +131,13 @@ def main(consumer, dxc, adapter):
             assert got == untouched, f'{mode}: a refused Dispatch wrote the output'
             refused = lines(result, 'refused: ')
             assert len(refused) == 1 and refused[0].endswith('refused: ' + reason), f'{mode}: {refused}\n{result.stderr[-3000:]}'
-        print(f'startup_compute_dispatch: PASS on {adapter} (all {C.WORDS} words match after translation and with the '
-              'same root set again; untouched before translation, without a Dispatch and for 6 refusals)')
+        for mode in ('dispatch-output-token', 'dispatch-output-token-typed'):
+            got, result = dispatch(directory, consumer, env, mode)
+            wrong = [i for i in range(C.WORDS) if got[i] != expected[i]]
+            assert not wrong and not lines(result, 'refused'), f'{mode}: {len(wrong)} words differ\n{result.stderr[-3000:]}'
+        print(f'startup_compute_dispatch: PASS on {adapter} (all {C.WORDS} words match after translation, with the '
+              'same root set again and with the output named by a raw or typed view token; untouched before '
+              'translation, without a Dispatch and for 6 refusals)')
 
 
 if __name__ == '__main__':
