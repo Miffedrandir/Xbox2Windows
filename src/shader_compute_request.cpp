@@ -49,7 +49,7 @@ x2w::GraphicsRequest x2w::read_graphics_request(const fs::path &marker) {
         request.input_layout = part(marker, ".ia", 1 << 20);
     if (fs::exists(fs::path(marker).replace_extension(".psin")))
         request.pixel_entry = part(marker, ".psin", 12);
-    constexpr char revision[] = "x2w-startup-shader-14";
+    constexpr char revision[] = "x2w-startup-shader-28";
     uint64_t key = 1469598103934665603ull;
     hash_bytes(key, revision, sizeof(revision) - 1);
     for (const auto *p : {&request.a, &request.b, &request.root, &request.input_layout, &request.pixel_entry})
@@ -75,7 +75,7 @@ x2w::ComputeRequest x2w::read_compute_request(const fs::path &marker) {
         read<uint64_t>(desc, 16) != sa.size() || read<uint64_t>(desc, 32) != sb.size())
         throw std::runtime_error("inconsistent compute request");
     uint64_t key = 1469598103934665603ull;
-    constexpr char revision[] = "x2w-startup-shader-14cs";
+    constexpr char revision[] = "x2w-startup-shader-28cs";
     hash_bytes(key, revision, sizeof(revision) - 1);
     for (const auto *p : {&code, &data, &root, &desc, &sa, &sb}) {
         uint64_t size = p->size();

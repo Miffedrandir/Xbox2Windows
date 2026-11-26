@@ -164,7 +164,7 @@ def interpolated_pixel(mismatched=False):
 def publish(directory, *stages, pixel_entry=b""):
     directory.mkdir(exist_ok=True)
     key = 1469598103934665603
-    for byte in b"x2w-startup-shader-14" + b"".join(stages) + pixel_entry:
+    for byte in b"x2w-startup-shader-28" + b"".join(stages) + pixel_entry:
         key = ((key ^ byte) * 1099511628211) & ((1 << 64) - 1)
     stem = f"req_{key:016x}"
     for suffix, data in zip((".a", ".b", ".root", ".ia"), stages):
